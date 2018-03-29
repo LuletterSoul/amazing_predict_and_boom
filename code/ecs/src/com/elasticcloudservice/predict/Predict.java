@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 public class Predict {
 
-    public final static String[] FLAVOR_TYPES = {"flavor0",
+    public final static String[] FLAVOR_TYPES = {
             "flavor1",
             "flavor2",
             "flavor3", "flavor4", "flavor5", "flavor6",
@@ -52,24 +52,17 @@ public class Predict {
             }
         }
         Map<String, Map<String, List<Flavor>>> groups = group(flavors);
-        Integer[][] trainData = new Integer[groups.keySet().size()][FLAVOR_TYPES.length];
-        AtomicInteger line = new AtomicInteger(0);
-        groups.forEach((key, value) -> {
-            for(int i=1;i<FLAVOR_TYPES.length;i++){
-                List<Flavor> flavorList = value.get(FLAVOR_TYPES[i]);
-                if (flavorList == null) {
-                    trainData[line.get()][i] = 0;
-                }
-                else{
-                    trainData[line.get()][i] = flavorList.size();
-                }
-            }
-            line.set(line.get() + 1);
-        });
-        for (int i = 0; i < trainData.length; i++) {
+        int[][] trainData = transfer(groups);
+        LinearRegression regression = new LinearRegression(trainData,15,10,0.001,10000);
+        regression.trainTheta();
+        double [][] predicResults =  regression.predict(7);
+
+
+
+        for (int i = 0; i < predicResults.length; i++) {
             System.out.print("Line:" +(i+1)+ " :    ");
-            for (int j = 1; j < trainData[i].length; j++) {
-                System.out.print(trainData[i][j] + " ");
+            for (int j = 0; j < predicResults[i].length; j++) {
+                System.out.print(predicResults[i][j] + " ");
             }
             System.out.println();
         }
@@ -81,6 +74,24 @@ public class Predict {
 
         }
         return results;
+    }
+
+    private static int[][] transfer(Map<String, Map<String, List<Flavor>>> groups) {
+        int[][] trainData = new int[groups.keySet().size()][FLAVOR_TYPES.length];
+        AtomicInteger line = new AtomicInteger(0);
+        groups.forEach((key, value) -> {
+            for(int i=0;i<FLAVOR_TYPES.length;i++){
+                List<Flavor> flavorList = value.get(FLAVOR_TYPES[i]);
+                if (flavorList == null) {
+                    trainData[line.get()][i] = 0;
+                }
+                else{
+                    trainData[line.get()][i] = flavorList.size();
+                }
+            }
+            line.set(line.get() + 1);
+        });
+        return trainData;
     }
 
     private static Map<String, Map<String, List<Flavor>>> group(List<Flavor> flavors) {
