@@ -3,6 +3,10 @@ package com.elasticcloudservice.predict;
 import com.elasticcloudservice.flavor.Flavor;
 import com.filetool.util.LogUtil;
 
+import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -53,19 +57,65 @@ public class Predict {
         }
         Map<String, Map<String, List<Flavor>>> groups = group(flavors);
         int[][] trainData = transfer(groups);
-        LinearRegression regression = new LinearRegression(trainData,15,10,0.001,10000);
-        regression.trainTheta();
-        double [][] predicResults =  regression.predict(7);
 
+//        for (int i = 0; i < trainData.length; i++) {
+//            System.out.print("Line:" +(i+1)+ " :    ");
+//            for (int j = 0; j < trainData[i].length; j++) {
+//                System.out.print(trainData[i][j] + " ");
+//            }
+//            System.out.println();
+//        }
 
-
-        for (int i = 0; i < predicResults.length; i++) {
-            System.out.print("Line:" +(i+1)+ " :    ");
-            for (int j = 0; j < predicResults[i].length; j++) {
-                System.out.print(predicResults[i][j] + " ");
+//        LinearRegression regression = new LinearRegression(trainData,15,10,0.001,1000);
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
+        String time =  df.format(new Date());
+        String filepath =  "C:\\Users\\17262\\Desktop\\软件精英挑战赛\\log\\log"+time+".txt";
+        try {
+            System.setOut(new PrintStream(new BufferedOutputStream(
+                    new FileOutputStream(filepath)),true));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        System.out.println("输入矩阵为：");
+        for(int i = 0;i<trainData.length;i++){
+            for(int j=0;j<trainData[i].length;j++){
+                System.out.print(trainData[i][j]+" ");
             }
             System.out.println();
         }
+
+        System.out.println("\r\n以下为训练部分");
+        int flavorNum = 15; // 初赛15个flavor
+        int dayForPredict = 20; //参与线性回归的参数 建议值：20
+        double alpha = 0.001;   //更新的步长 建议值：0.001
+        int iteration = 150000;     //迭代的次数 建议值：100000
+        LinearRegression_1 regression = new LinearRegression_1(trainData,flavorNum,dayForPredict,alpha,iteration);
+        regression.trainTheta();
+        double [][] predicResults =  regression.predict(7);
+        double[] finalPredict = new  double[flavorNum];
+        for(int i = 0;i<predicResults.length;i++){
+            for(int j = 0;j<predicResults[i].length;j++){
+                if(i==0){
+                    finalPredict[j] = predicResults[i][j];
+                }else{
+                    finalPredict[j]+=predicResults[i][j];
+                }
+            }
+        }
+        System.out.println("预测结果如下");
+        for(int i = 0;i<flavorNum;i++){
+            System.out.println("flavor"+(i+1)+": "+finalPredict[i]);
+        }
+
+
+
+//        for (int i = 0; i < predicResults.length; i++) {
+//            System.out.print("Line:" +(i+1)+ " :    ");
+//            for (int j = 0; j < predicResults[i].length; j++) {
+//                System.out.print(predicResults[i][j] + " ");
+//            }
+//            System.out.println();
+//        }
         for (int i = 1; i < inputContent.length; i++) {
         }
 

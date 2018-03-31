@@ -1,5 +1,7 @@
 package com.elasticcloudservice.predict;
 
+import java.util.Random;
+
 public class LinearRegression
 {
     private int[][] trainData; //训练数据
@@ -9,12 +11,13 @@ public class LinearRegression
     private double[] theta0;
     private double alpha;//步长
     private int iteration;//迭代次数
+    private boolean mark;
 
     public LinearRegression(int[][] trainData,int flavorNum,int dayForPredict,double alpha,int iteration)
     {
         this.trainData = trainData;
-        this.dayForPredict = dayForPredict; //参考数据10天
-        this.alpha = alpha;//参考步长为0.001
+        this.dayForPredict = dayForPredict; //
+        this.alpha = alpha;//参考步长为0.001参考数据10天
         this.iteration=iteration;//参考迭代次数为 100000
         this.flavorNum = flavorNum; //初赛15个
         theta0 = new double[flavorNum];
@@ -22,15 +25,16 @@ public class LinearRegression
         initialize_theta();
     }
 
-    private void initialize_theta()//将theta各个参数全部初始化为1.0
+    private void initialize_theta()//将theta各个参数全部初始化为0.0
     {
+        Random random = new Random();
         for(int i=0;i<theta0.length;i++){
-            theta0[i] = 1.0;
+            theta0[i] = 0.0+random.nextDouble();
         }
         for(int i=0;i<theta.length;i++){
             for(int j=0;j<theta[i].length;j++){
                 for(int k = 0 ;k<theta[i][j].length;k++){
-                    theta[i][j][k] = 1.0;
+                    theta[i][j][k] = 0.0+random.nextDouble();
                 }
             }
         }
@@ -39,14 +43,16 @@ public class LinearRegression
 
     private double[] compute_partial_detivative_for_theta0(){
         double[] result = new double[flavorNum];
-        for(int n =0;n<flavorNum;n++){
-            result[n] = theta0[n];
+        for(int n = 0 ; n<flavorNum;n++){
+            result[n] = 0.0;
         }
         for(int n = 0;n<flavorNum;n++){
             for(int k = dayForPredict;k<trainData.length;k++){
-                for(int p = k-dayForPredict;p<k;p++){
+                result[n] += theta0[n];
+                int r = 0;
+                for(int p = k-dayForPredict;p<k;p++,r++){
                     for(int q = 0;q<flavorNum;q++){
-                        result[n] += theta[n][p][q]*trainData[p][q];
+                        result[n] += theta[n][r][q]*trainData[p][q];
                     }
                 }
                 result[n] -= trainData[k][n];
@@ -58,28 +64,31 @@ public class LinearRegression
 
     private double  compute_partial_derivative_for_theta(int n,int i,int j)
     {
-        double result = 0.0;
+        double sum = 0.0;
+        double result ;
         for(int k = dayForPredict;k<trainData.length;k++){
             result = theta0[n];
-            for(int p = k-dayForPredict;p<k;p++){
+            int r = 0;
+            for(int p = k-dayForPredict;p<k;p++,r++){
                 for(int q = 0;q<flavorNum;q++){
-                    result += theta[n][p][q]*trainData[p][q];
+                    result += theta[n][r][q]*trainData[p][q];
                 }
             }
             result -= trainData[k][n];
             result *= trainData[k-dayForPredict+i][j];
+            sum+=result;
         }
-        return result/(trainData.length-dayForPredict);
+        return sum/(trainData.length-dayForPredict);
     }
 
     private double[][][] compute_partial_derivative(){
         double[][][] partial_derivative = new double[flavorNum][dayForPredict][flavorNum];
         for(int n = 0;n<flavorNum;n++){
             for(int i=0;i<dayForPredict;i++){
-                for(int j=0;j<dayForPredict;j++){
+                for(int j=0;j<flavorNum;j++){
                     partial_derivative[n][i][j] = compute_partial_derivative_for_theta(n,i,j);
                 }
-
+                //较之前修改过
             }
         }
         return partial_derivative;
@@ -94,7 +103,15 @@ public class LinearRegression
             double[] partial_derivative_for_theta0 = compute_partial_detivative_for_theta0();
 
             for(int n =0;n<flavorNum;n++){
+                if(partial_derivative_for_theta0[n]<1e-5){
+                    mark = true;
+                }else{
+                    mark = false;
+                }
                 theta0[n]-=alpha*partial_derivative_for_theta0[n];
+//                if(theta0[n]<0){
+//                    theta0[n] = 0.001;
+//                }
             }
 
             double [][][] partial_derivative = compute_partial_derivative();//偏导数
@@ -102,9 +119,21 @@ public class LinearRegression
             for(int n =0; n< flavorNum;n++){
                 for(int i = 0 ;i<dayForPredict;i++){
                     for(int j = 0;j<flavorNum;j++){
+                        if(partial_derivative[n][i][j]<1e-5){
+                            mark = true;
+                        }else{
+                            mark = false;
+                        }
                         theta[n][i][j] -= alpha*partial_derivative[n][i][j];
+//                        if(theta[n][i][j]<0){
+//                            theta[n][i][j] = 0.001;
+//                        }
                     }
                 }
+            }
+            if(mark == true){
+                System.out.println("该线性回归已收敛,此时的迭代次数为"+iteration);
+                break;
             }
         }
     }
@@ -112,19 +141,24 @@ public class LinearRegression
     public double[][] predict(int nextDay){
         double[][] nextData = new double[nextDay][flavorNum];
         for(int i = 0; i < nextDay; i++){
-            for(int n=0;n<flavorNum;n++){
+            for(int n = 0;n<flavorNum;n++){
                 nextData[i][n] = theta0[n];
                 int k = 0;
                 for(int p = trainData.length - dayForPredict + i;p<trainData.length;p++){
                     for(int q = 0;q<flavorNum;q++){
-                        nextData[i][n] += theta[n][k++][q]*trainData[p][q];
+                        nextData[i][n] += theta[n][k][q]*trainData[p][q];
                     }
+                    k++;
                 }
                 int t = 0;
+                if(i>dayForPredict){
+                    t = i-dayForPredict;
+                }
                 while(k<dayForPredict){
                     for(int q = 0;q<flavorNum;q++){
-                        nextData[i][n] += theta[n][k++][q]*nextData[t][q];
+                        nextData[i][n] += theta[n][k][q]*nextData[t++][q];
                     }
+                    k++;
                 }
                 System.out.print(nextData[i][n]+"  ");
             }
